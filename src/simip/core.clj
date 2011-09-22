@@ -118,6 +118,15 @@
         (map #(MidiSystem/getMidiDevice %))
         (filter #(isa? (class %) javax.sound.midi.Sequencer))))))
 
+(def get-output-devices
+  (memoize 
+    (fn []
+      (->> 
+        (MidiSystem/getMidiDeviceInfo)
+        (map #(MidiSystem/getMidiDevice %))
+        (filter #(and (not= (.getMaxReceivers %) 0)
+                      (not (isa? (class %) javax.sound.midi.Sequencer))))))))
+
 (def get-synthesizers
   (memoize 
     (fn []
@@ -130,8 +139,8 @@
   (show-progress-indicator)
   (when-let [s (ssw/input "Select midi device"
                           :title "Select midi device" 
-                          :choices (get-synthesizers)
-                          :to-string #(.getDescription (.getDeviceInfo %)))]
+                          :choices (get-output-devices)
+                          :to-string #(.getName (.getDeviceInfo %)))]
     (stop!)
     (open-synthesizer s)
     (reload-midi-file))
@@ -171,7 +180,7 @@
                      :content 
                      (ssw/border-panel :center player-panel
                                        :south  indicator-panel))]
-    (open-sequencer (MidiSystem/getSequencer))
+    (open-sequencer (first (get-sequencers)))
     (when filename
       (open-midi-file (file filename)))
     (-> f ssw/pack! ssw/show!)))
