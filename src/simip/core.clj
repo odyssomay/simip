@@ -18,14 +18,15 @@
 
 (defn start! []
   (when (sequencer-ready?)
-    (.start @sequencer)))
+    (.start @sequencer)
+    true))
 
-(defn stop! [] 
+(defn stop! []
   (when (sequencer-ready?)
     (.stop @sequencer) 
     (.setTickPosition @sequencer 0)))
 
-(defn pause! [] 
+(defn pause! []
   (when (sequencer-ready?)
     (.stop @sequencer)))
 
@@ -65,7 +66,8 @@
   (defn reload-midi-file []
     (when (and @midi-file @sequencer (.isOpen @sequencer))
       (.setSequence @sequencer (MidiSystem/getSequence @midi-file))
-      (start!)))
+      (start!)
+      true))
 
   (defn open-midi-file [f]
     (reset! midi-file f)
@@ -124,7 +126,7 @@
 (defn choose-midi-device []
   (show-progress-indicator)
   (when-let [s (ssw/input "Select midi device"
-                          :title "Midi device selection" 
+                          :title "Select midi device" 
                           :choices (get-synthesizers)
                           :to-string #(.getDescription (.getDeviceInfo %)))]
     (stop!)
@@ -140,7 +142,8 @@
     :floatable? false
     :items 
     [(ssw/action :icon (resource "icons/play.png")
-                 :handler (fn [_] (start!)))
+                 :handler (fn [_] (if-not (start!)
+                                    (choose-midi-file))))
      (ssw/action :icon (resource "icons/pause.png")
                  :handler (fn [_] (pause!)))
      :separator
@@ -149,12 +152,15 @@
      :separator
      :separator
      (ssw/action :icon (resource "icons/document.png")
-                 :handler (fn [_] (choose-midi-file)))
+                 :handler (fn [_] (choose-midi-file))
+                 :tip "Open midi file")
      (ssw/action :icon (resource "icons/document_refresh.png")
-                 :handler (fn [_] (reload-midi-file)))
+                 :handler (fn [_] (if-not (reload-midi-file)
+                                    (choose-midi-file)))
+                 :tip "Reload selected file")
      (ssw/action :icon (resource "icons/gear.png")
-                 :handler (fn [_] (choose-midi-device)))
-     ]))
+                 :handler (fn [_] (choose-midi-device))
+                 :tip "Select midi device")]))
 
 (defn -main [& [filename]]
   (let [f (ssw/frame :title "Simip"
