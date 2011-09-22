@@ -1,4 +1,4 @@
-(defproject simip "1"
+(defproject simip "2"
   :description "Simple midi player"
   :main simip.core
   :dependencies [[org.clojure/clojure "1.2.1"]

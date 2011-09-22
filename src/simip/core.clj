@@ -9,8 +9,13 @@
 (ssw/native!)
 (javax.swing.UIManager/put "FileChooser.readOnly" true)
 
+(def frame (ssw/frame :on-close :exit :resizable? false :title "Simip")) 
+
 (def sequencer (atom nil))
 (def transmitter (atom nil))
+(def output-device (atom nil))
+(def receiver (atom nil))
+
 (add-watch sequencer nil (fn [_ _ _ s] (reset! transmitter (.getTransmitter s))))
 
 (defn sequencer-ready? []
@@ -21,6 +26,8 @@
 
 (defn start! []
   (when (sequencer-ready?)
+    (if (< (- (.getTickLength @sequencer) (.getTickPosition @sequencer)) 10)
+      (.setTickPosition @sequencer 0))
     (.start @sequencer)
     true))
 
@@ -73,12 +80,14 @@
       true))
 
   (defn open-midi-file [f]
+    (ssw/config! frame :title (str "Simip: " (.getName f)))
     (reset! midi-file f)
     (reload-midi-file)
     (show-position-indicator))
 
   (defn choose-midi-file []
     (when-let [f (ssw-chooser/choose-file :filters [["Midi Files" ["midi" "mid" "smf"]]])]
+      (stop!)
       (open-midi-file f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,22 +102,20 @@
       (ssw/alert "Midi device is unavailable")
       (System/exit 1))))
 
-(let [synth (atom nil)
-      receiver (atom nil)]
-  (defn open-synthesizer [s]
-    (try
-      (when @synth (.close @synth))
-      (when @receiver (.close @receiver))
-      (reset! synth s)
-      (let [r (.getReceiver @synth)]
-        (reset! receiver r)
-        (.open s)
-        (.setReceiver @transmitter r)
-        (.addShutdownHook (Runtime/getRuntime) (Thread. #(.close r)))
-        )
-      (catch javax.sound.midi.MidiUnavailableException _
-        (ssw/alert "Midi device is unavailable")
-        (System/exit 1)))))
+(defn open-output-device [s]
+  (try
+    (when @output-device (.close @output-device))
+    (when @receiver (.close @receiver))
+    (reset! output-device s)
+    (let [r (.getReceiver @output-device)]
+      (reset! receiver r)
+      (.open s)
+      (.setReceiver @transmitter r)
+      (.addShutdownHook (Runtime/getRuntime) (Thread. #(.close r)))
+      )
+    (catch javax.sound.midi.MidiUnavailableException _
+      (ssw/alert "Midi device is unavailable")
+      (System/exit 1))))
 
 (def get-sequencers
   (memoize 
@@ -135,16 +142,22 @@
         (map #(MidiSystem/getMidiDevice %))
         (filter #(isa? (class %) javax.sound.midi.Synthesizer))))))
 
-(defn choose-midi-device []
-  (show-progress-indicator)
-  (when-let [s (ssw/input "Select midi device"
-                          :title "Select midi device" 
-                          :choices (get-output-devices)
-                          :to-string #(.getName (.getDeviceInfo %)))]
-    (stop!)
-    (open-synthesizer s)
-    (reload-midi-file))
-  (show-position-indicator))
+(let [cb (ssw/combobox :model (map #(.getName (.getDeviceInfo %)) (get-output-devices))
+                       :border 10)]
+  (defn choose-midi-device []
+    (let [dialog (ssw/dialog :content cb
+                             :type :plain
+                             :option-type :ok-cancel
+                             :modal? true
+                             :success-fn (fn [& _] 
+                                           (let [s (nth (get-output-devices) (.getSelectedIndex cb))]
+                                             (stop!)
+                                             (open-output-device s)
+                                             (reload-midi-file)))
+                             )]
+      (show-progress-indicator)
+      (-> dialog ssw/pack! ssw/show!)
+      (show-position-indicator))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main UI
@@ -175,13 +188,13 @@
                  :tip "Select midi device")]))
 
 (defn -main [& [filename]]
-  (let [f (ssw/frame :title "Simip"
-                     :on-close :exit
-                     :content 
-                     (ssw/border-panel :center player-panel
-                                       :south  indicator-panel))]
-    (open-sequencer (first (get-sequencers)))
-    (when filename
-      (open-midi-file (file filename)))
-    (-> f ssw/pack! ssw/show!)))
+  (ssw/config! frame 
+               :content 
+               (ssw/border-panel :center player-panel
+                                 :south  indicator-panel))
+  (open-sequencer (first (get-sequencers)))
+  (open-output-device (first (get-output-devices)))
+  (when filename
+    (open-midi-file (file filename)))
+  (-> frame ssw/pack! ssw/show!))
 
