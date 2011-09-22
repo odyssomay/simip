@@ -1,5 +1,6 @@
 (ns simip.core
-  (:use [clojure.java.io :only [resource]])
+  (:gen-class)
+  (:use [clojure.java.io :only [resource file]])
   (:require [seesaw 
              [core :as ssw]
              [chooser :as ssw-chooser]])  
@@ -65,11 +66,14 @@
     (when (and @midi-file @sequencer (.isOpen @sequencer))
       (.setSequence @sequencer (MidiSystem/getSequence @midi-file))))
 
+  (defn open-midi-file [f]
+    (reset! midi-file f)
+    (reload-midi-file)
+    (show-position-indicator))
+
   (defn choose-midi-file []
     (when-let [f (ssw-chooser/choose-file :filters [["Midi Files" ["midi" "mid" "smf"]]])]
-      (reset! midi-file f)
-      (reload-midi-file)
-      (show-position-indicator))))
+      (open-midi-file f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Device
@@ -123,7 +127,6 @@
                           :choices (get-synthesizers)
                           :to-string #(.getDescription (.getDeviceInfo %)))]
     (stop!)
-    ;(open-sequencer s)
     (open-synthesizer s)
     (reload-midi-file))
   (show-position-indicator))
@@ -152,11 +155,15 @@
                  :handler (fn [_] (choose-midi-device)))
      ]))
 
-(defn -main [& args]
+(defn -main [& [filename]]
   (let [f (ssw/frame :title "Simip"
+                     :on-close :exit
                      :content 
                      (ssw/border-panel :center player-panel
                                        :south  indicator-panel))]
     (open-sequencer (MidiSystem/getSequencer))
+    (when filename
+      (open-midi-file (file filename))
+      (start!))
     (-> f ssw/pack! ssw/show!)))
 
