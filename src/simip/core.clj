@@ -6,6 +6,7 @@
              [chooser :as ssw-chooser]])  
   (:import javax.sound.midi.MidiSystem))
 
+(ssw/native!)
 (javax.swing.UIManager/put "FileChooser.readOnly" true)
 
 (def sequencer (atom nil))
