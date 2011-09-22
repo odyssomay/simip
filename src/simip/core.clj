@@ -64,7 +64,8 @@
 (let [midi-file (atom nil)]
   (defn reload-midi-file []
     (when (and @midi-file @sequencer (.isOpen @sequencer))
-      (.setSequence @sequencer (MidiSystem/getSequence @midi-file))))
+      (.setSequence @sequencer (MidiSystem/getSequence @midi-file))
+      (start!)))
 
   (defn open-midi-file [f]
     (reset! midi-file f)
@@ -163,7 +164,6 @@
                                        :south  indicator-panel))]
     (open-sequencer (MidiSystem/getSequencer))
     (when filename
-      (open-midi-file (file filename))
-      (start!))
+      (open-midi-file (file filename)))
     (-> f ssw/pack! ssw/show!)))
 
