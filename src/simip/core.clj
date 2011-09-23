@@ -43,23 +43,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Position Control
 
+(def position-is-updating? (atom false))
 (def position-indicator (ssw/slider :min 0 :max 0))
 (def indicator-panel (ssw/card-panel :items [[position-indicator "position"]
                                              [(ssw/progress-bar :indeterminate? true :border 10) "progress"]]))
 
 (defn update-position-indicator-range []
   (when (sequencer-ready?)
-    (.setMaximum position-indicator (int (.getTickLength @sequencer)))))
+    (reset! position-is-updating? true)
+    (.setMaximum position-indicator (int (.getTickLength @sequencer)))
+    (reset! position-is-updating? false)))
 
 (def init-position-indicator
   (memoize 
     (fn []
       (.start
         (Thread. (fn [] 
-                   (if (sequencer-ready?)
-                     (.setValue position-indicator (int (.getTickPosition @sequencer))))
+                   (when (sequencer-ready?)
+                     (reset! position-is-updating? true)
+                     (.setValue position-indicator (int (.getTickPosition @sequencer)))
+                     (reset! position-is-updating? false))
                    (Thread/sleep 100)
-                   (recur)))))))
+                   (recur))))
+      (.addChangeListener position-indicator
+        (reify javax.swing.event.ChangeListener
+          (stateChanged [_ _]
+            (if (and (not @position-is-updating?)
+                     (sequencer-ready?))
+              (.setTickPosition @sequencer (.getValue position-indicator)))))))))
 
 (defn show-position-indicator []
   (init-position-indicator)
