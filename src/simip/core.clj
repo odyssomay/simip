@@ -45,13 +45,16 @@
 
 (def position-is-updating? (atom false))
 (def position-indicator (ssw/slider :min 0 :max 0))
-(def indicator-panel (ssw/card-panel :items [[position-indicator "position"]
+(def position-indicator-label (ssw/label :text "0:0/0:0" :border 5))
+(def indicator-panel (ssw/card-panel :items [[(ssw/border-panel :west position-indicator-label
+                                                                :center position-indicator)
+                                              "position"]
                                              [(ssw/progress-bar :indeterminate? true :border 10) "progress"]]))
 
 (defn update-position-indicator-range []
   (when (sequencer-ready?)
     (reset! position-is-updating? true)
-    (.setMaximum position-indicator (int (.getTickLength @sequencer)))
+    (.setMaximum position-indicator (int (.getMicrosecondLength @sequencer)))
     (reset! position-is-updating? false)))
 
 (def init-position-indicator
@@ -61,7 +64,7 @@
         (Thread. (fn [] 
                    (when (sequencer-ready?)
                      (reset! position-is-updating? true)
-                     (.setValue position-indicator (int (.getTickPosition @sequencer)))
+                     (.setValue position-indicator (int (.getMicrosecondPosition @sequencer)))
                      (reset! position-is-updating? false))
                    (Thread/sleep 100)
                    (recur))))
@@ -70,7 +73,22 @@
           (stateChanged [_ _]
             (if (and (not @position-is-updating?)
                      (sequencer-ready?))
-              (.setTickPosition @sequencer (.getValue position-indicator)))))))))
+              (.setMicrosecondPosition @sequencer (.getValue position-indicator))))))
+      (.addChangeListener position-indicator
+        (reify javax.swing.event.ChangeListener
+          (stateChanged [_ e]
+            (ssw/config! position-indicator-label :text
+              (let [pos-in-seconds (/ (.getValue (.getSource e)) 1000000)
+                    length-in-seconds (/ (.getMicrosecondLength @sequencer) 1000000)]
+                (str (quot pos-in-seconds 60) 
+                     ":" 
+                     (int (mod pos-in-seconds 60))
+                     "/"
+                     (quot length-in-seconds 60)
+                     ":"
+                     (int (mod length-in-seconds 60))
+                     ))))))
+      )))
 
 (defn show-position-indicator []
   (init-position-indicator)
@@ -164,8 +182,7 @@
                                            (let [s (nth (get-output-devices) (.getSelectedIndex cb))]
                                              (stop!)
                                              (open-output-device s)
-                                             (reload-midi-file)))
-                             )]
+                                             (reload-midi-file))))]
       (show-progress-indicator)
       (-> dialog ssw/pack! ssw/show!)
       (show-position-indicator))))
