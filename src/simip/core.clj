@@ -184,26 +184,21 @@
           (choose-midi-file))
         (.setFocusable plb false)
         (.setFocusable pab true)
-        (.requestFocusInWindow pab)
-        ))
+        (.requestFocusInWindow pab)))
     (ssw/config! paa :handler
       (fn [_]
         (pause!)
         (.setFocusable plb true)
         (.setFocusable pab false)
-        (.requestFocusInWindow plb)
-        ))
+        (.requestFocusInWindow plb)))
     (ssw/toolbar 
       :floatable? false
       :items 
       [plb pab
        :separator
-       (let [a (ssw/action :icon (resource "icons/stop.png")
-                           :handler (fn [_] (stop!))
-                           :tip "stop")]
-         (.putValue a javax.swing.Action/ACCELERATOR_KEY
-                    java.awt.event.KeyEvent/VK_SPACE)
-         a) 
+       (ssw/action :icon (resource "icons/stop.png")
+                   :handler (fn [_] (stop!))
+                   :tip "stop")
        :separator
        (ssw/action :icon (resource "icons/document.png")
                    :handler (fn [_] (choose-midi-file))
