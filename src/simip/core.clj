@@ -174,38 +174,63 @@
 ;; Main UI
 
 (def player-panel
-  (ssw/toolbar 
-    :floatable? false
-    :items 
-    [(ssw/action :icon (resource "icons/play.png")
-                 :handler (fn [_] (if-not (start!)
-                                    (choose-midi-file))))
-     (ssw/action :icon (resource "icons/pause.png")
-                 :handler (fn [_] (pause!)))
-     :separator
-     (ssw/action :icon (resource "icons/stop.png")
-                 :handler (fn [_] (stop!)))
-     :separator
-     :separator
-     (ssw/action :icon (resource "icons/document.png")
-                 :handler (fn [_] (choose-midi-file))
-                 :tip "Open midi file")
-     (ssw/action :icon (resource "icons/document_refresh.png")
-                 :handler (fn [_] (if-not (reload-midi-file)
-                                    (choose-midi-file)))
-                 :tip "Reload selected file")
-     (ssw/action :icon (resource "icons/gear.png")
-                 :handler (fn [_] (choose-midi-device))
-                 :tip "Select midi device")]))
+  (let [pla (ssw/action :icon (resource "icons/play.png") :tip "play")
+        paa (ssw/action :icon (resource "icons/pause.png") :tip "pause")
+        plb (ssw/button :action pla)
+        pab (ssw/button :action paa)]
+    (ssw/config! pla :handler
+      (fn [_]
+        (if-not (start!)
+          (choose-midi-file))
+        (.setFocusable plb false)
+        (.setFocusable pab true)
+        (.requestFocusInWindow pab)
+        ))
+    (ssw/config! paa :handler
+      (fn [_]
+        (pause!)
+        (.setFocusable plb true)
+        (.setFocusable pab false)
+        (.requestFocusInWindow plb)
+        ))
+    (ssw/toolbar 
+      :floatable? false
+      :items 
+      [plb pab
+       :separator
+       (let [a (ssw/action :icon (resource "icons/stop.png")
+                           :handler (fn [_] (stop!))
+                           :tip "stop")]
+         (.putValue a javax.swing.Action/ACCELERATOR_KEY
+                    java.awt.event.KeyEvent/VK_SPACE)
+         a) 
+       :separator
+       (ssw/action :icon (resource "icons/document.png")
+                   :handler (fn [_] (choose-midi-file))
+                   :tip "Open midi file")
+       (ssw/action :icon (resource "icons/document_refresh.png")
+                   :handler (fn [_] (if-not (reload-midi-file)
+                                      (choose-midi-file)))
+                   :tip "Reload selected file")
+       (ssw/action :icon (resource "icons/gear.png")
+                   :handler (fn [_] (choose-midi-device))
+                   :tip "Select midi device")])))
+
+(defn disable-focus [content]
+  (let [cs (.getComponents content)]
+    (if (> (count cs) 0)
+      (dorun (map disable-focus cs))
+      (if-not (= (.getToolTipText content) "play")
+        (.setFocusable content false)))))
 
 (defn -main [& [filename]]
-  (ssw/config! frame 
-               :content 
-               (ssw/border-panel :center player-panel
-                                 :south  indicator-panel))
-  (open-sequencer (first (get-sequencers)))
-  (open-output-device (first (get-output-devices)))
-  (when filename
-    (open-midi-file (file filename)))
-  (-> frame ssw/pack! ssw/show!))
+  (let [content (ssw/border-panel :center player-panel
+                                  :south indicator-panel)]
+    (ssw/config! frame :content content)
+    (open-sequencer (first (get-sequencers)))
+    (open-output-device (first (get-output-devices)))
+    (when filename
+      (open-midi-file (file filename)))
+    (disable-focus content)
+    (-> frame ssw/pack! ssw/show!)))
 
