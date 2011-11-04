@@ -173,16 +173,20 @@
 
 (let [cb (ssw/combobox :model (map #(.getName (.getDeviceInfo %)) (get-output-devices))
                        :border 10)]
+  (defn set-midi-device [index]
+    (if-not (= (.getSelectedIndex cb) index)
+      (.setSelectedIndex cb index))
+    (let [s (nth (get-output-devices) index)]
+      (stop!)
+      (open-output-device s)
+      (reload-midi-file)))
   (defn choose-midi-device []
     (let [dialog (ssw/dialog :content cb
                              :type :plain
                              :option-type :ok-cancel
                              :modal? true
                              :success-fn (fn [& _] 
-                                           (let [s (nth (get-output-devices) (.getSelectedIndex cb))]
-                                             (stop!)
-                                             (open-output-device s)
-                                             (reload-midi-file))))]
+                                           (set-midi-device (.getSelectedIndex cb))))]
       (show-progress-indicator)
       (-> dialog ssw/pack! ssw/show!)
       (show-position-indicator))))
@@ -235,14 +239,20 @@
       (if-not (= (.getToolTipText content) "play")
         (.setFocusable content false)))))
 
-(defn -main [& [filename]]
-  (let [content (ssw/border-panel :center player-panel
+(defn -main [& opts]
+  (let [filename (first (drop-while #(re-matches #"[0-9]+" %) opts))
+        device-index (some #(re-matches #"[0-9]+" %) opts)
+        content (ssw/border-panel :center player-panel
                                   :south indicator-panel)]
+    (println filename device-index)
     (ssw/config! frame :content content)
     (open-sequencer (first (get-sequencers)))
     (open-output-device (first (get-output-devices)))
     (when filename
       (open-midi-file (file filename)))
+    (when device-index
+      (set-midi-device (read-string device-index)))
+;      (set-midi-device 
     (disable-focus content)
     (-> frame ssw/pack! ssw/show!)))
 
