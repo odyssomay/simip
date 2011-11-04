@@ -3,7 +3,7 @@ Simip is a really simple midi player.
 
 ### Usage
 
-1. Download the [latest jar](https://github.com/downloads/odyssomay/simip/simip-3-standalone.jar).
+1. Download the [latest jar](https://github.com/downloads/odyssomay/simip/simip-4-standalone.jar).
 2. Run it.
 3. That's it!
 
