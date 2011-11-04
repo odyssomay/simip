@@ -244,7 +244,6 @@
         device-index (some #(re-matches #"[0-9]+" %) opts)
         content (ssw/border-panel :center player-panel
                                   :south indicator-panel)]
-    (println filename device-index)
     (ssw/config! frame :content content)
     (open-sequencer (first (get-sequencers)))
     (open-output-device (first (get-output-devices)))
@@ -252,7 +251,6 @@
       (open-midi-file (file filename)))
     (when device-index
       (set-midi-device (read-string device-index)))
-;      (set-midi-device 
     (disable-focus content)
     (-> frame ssw/pack! ssw/show!)))
 
